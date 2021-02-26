@@ -1,0 +1,92 @@
+---
+title: "Regression Model Coursera Assignment"
+author: "Amanda Nelson"
+date: "1/25/2021"
+output: html_document
+keep_tex: true
+fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Regression Models Course Project
+================================
+Amanda Nelson
+-------------
+
+###Summary
+
+In this report, a prediction model that can be used to determine how a user is lifting weights based on data collected by accelerometers is presented. 
+
+###Introduction
+
+In this report, the training data set provided by the course will be used to create a prediction model and the testing data set provided will be used to test the model. The provided dataset includes five classes, labeled A through E; lifting according to the specifications, throwing elbow to the front, lifting the elbow halfway, lowering the dumbell halfway, and throwing hips to the front. For more information about the dataset, the official website, <http://groupware.les.inf.puc-rio.br/har>, should be consulted.
+
+###Methods
+
+First, the necessary libraries and data ets were loaded and an overview and the descriptors of the data obtained. Then, the seed was set. Please note all outputs are hidden.
+
+```{r library, results='hide'}
+library(ggplot2)
+library(caret)
+library(randomForest)
+
+fulltraining <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", na.strings=c('#DIV/0!', '', 'NA'))
+
+finaltesting <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", na.strings=c('#DIV/0!', '', 'NA'))
+
+set.seed(888)
+```
+
+Then, the NA entries were removed from the training and both testing sets, as well as the columns that were not suitable for predictors.
+
+```{r NA1, results='hide'}
+col.rm <- c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window")
+training.rm <- which(colnames(fulltraining) %in% col.rm)
+fulltraining1 <- fulltraining[, -training.rm]
+mostlyNA <- sapply(fulltraining1, function(x) mean(is.na(x))) > 0.95
+fulltraining2 <- fulltraining1[, mostlyNA==F]
+
+col.rm <- c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window")
+training.rm <- which(colnames(finaltesting) %in% col.rm)
+finaltesting1 <- finaltesting[, -training.rm]
+mostlyNA <- sapply(finaltesting1, function(x) mean(is.na(x))) > 0.95
+finaltesting2 <-finaltesting1[, mostlyNA==F]
+```
+
+Next, the data was partitioned to have subsets to train and test.
+
+```{r partition, results='hide'}
+inTrain = createDataPartition(y=fulltraining2$classe, p=0.7, list = FALSE)
+training = fulltraining2[inTrain,]
+testing = fulltraining2[-inTrain,]
+
+```
+
+
+Next, a prediction model was built using Random Forest.
+
+```{r RF, results='hide'}
+RFmodel<-randomForest(classe ~ ., data=training, ntree=10)
+predictions <-predict(RFmodel, testing)
+confusionMatrix(predictions,testing$classe)
+modeltest<-confusionMatrix(predictions, testing$classe)$overall[[1]]
+modeltest
+```
+
+According to the results, the model was 98.9% accurate when used against the training subset, thus the predicted accuracy for the out-of-sample error is 1.1%. The accuracy of the random forest model is shown below by plotting the error rates by the number of predictors.
+
+```{r plot}
+plot(RFmodel,main="Accuracy of Random forest model by number of predictors")
+```
+
+Now the model will be used to predict the unknown classes of the final testing set.
+
+```{r fullltest}
+finalpredictions <-predict(RFmodel, newdata=finaltesting2)
+finalpredictions
+```
+
